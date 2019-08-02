@@ -10,10 +10,13 @@ import nachos.machine.*;
  * threads can be paired off at this point.
  */
 public class Communicator {
+    /*Last edited by: Tang Boshi, on 23/03/2019*/
     /**
      * Allocate a new communicator.
      */
     public Communicator() {
+    this.speakerCond = new Condition2(this.lock);
+    this.listenerCond = new Condition2(this.lock);
     }
 
     /**
@@ -26,7 +29,18 @@ public class Communicator {
      *
      * @param	word	the integer to transfer.
      */
+     
     public void speak(int word) {
+        lock.acquire();
+
+        while(waitListener == 0 || fullcache){
+            speakerCond.sleep();
+        }
+        cache = word; 
+        fullcache = true;
+
+        listenerCond.wake();
+        lock.release();
     }
 
     /**
@@ -34,8 +48,29 @@ public class Communicator {
      * the <i>word</i> that thread passed to <tt>speak()</tt>.
      *
      * @return	the integer transferred.
-     */    
+     */
+     
+     /*(Edited by Tang) */
     public int listen() {
-	return 0;
+        lock.acquire();
+        waitListener++;
+        speakerCond.wake();
+        listenerCond.sleep();
+
+        int word = cache;
+        fullcache = false;
+        waitListener--;
+
+        speakerCond.wake();
+        lock.release();
+
+        return word;
     }
+
+    private int waitListener = 0;
+    private Lock lock = new Lock();
+    private Condition2 speakerCond;
+    private Condition2 listenerCond;
+    private int cache;
+    private boolean fullcache;
 }
